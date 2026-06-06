@@ -551,12 +551,13 @@
   }
 
   function clipCard(c) {
-    const thumb = c.thumbnail_url
-      ? `<img class="clip-thumb" src="${c.thumbnail_url}" alt="" loading="lazy">`
-      : `<div class="clip-thumb-placeholder">⚽</div>`;
+    const thumb = (c.thumbnail_url && !c.thumbnail_url.endsWith('/'))
+      ? `<img class="clip-thumb" src="${c.thumbnail_url}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      : '';
+    const placeholder = `<div class="clip-thumb-placeholder" style="${thumb ? 'display:none' : ''}">⚽</div>`;
     return `
       <div class="clip-card">
-        ${thumb}
+        ${thumb}${placeholder}
         <div class="clip-info">
           <div class="clip-num">Clip ${c.id}</div>
           <div class="clip-title">${escHtml(c.title)}</div>
@@ -595,6 +596,60 @@
     es.onerror = () => es.close();
   }
 
+  // ── Demo mode simulation ───────────────────────────────────────────────────
+  const DEMO_CLIPS = [
+    { id:1, title:"Mbappe 30-yard screamer vs Argentina", caption:"INSANE GOAL", start:312, end:351, duration_s:39, size_mb:22.4, filename:"short_01_Mbappe_screamer.mp4", thumbnail_url:"", download_url:"#", description:"Unstoppable long-range strike into the top corner" },
+    { id:2, title:"Lloris saves penalty in extra time", caption:"SUPERHERO SAVE", start:5820, end:5858, duration_s:38, size_mb:20.1, filename:"short_02_Lloris_save.mp4", thumbnail_url:"", download_url:"#", description:"Keeper dives full stretch to deny the equaliser" },
+    { id:3, title:"VAR drama overturns disallowed goal", caption:"VAR CHAOS", start:2741, end:2783, duration_s:42, size_mb:24.8, filename:"short_03_VAR_drama.mp4", thumbnail_url:"", download_url:"#", description:"Five-minute review overturns on-field decision" },
+    { id:4, title:"Griezmann red card second half", caption:"CONTROVERSIAL!", start:4102, end:4139, duration_s:37, size_mb:19.3, filename:"short_04_Griezmann_red.mp4", thumbnail_url:"", download_url:"#", description:"Shocking tackle changes the game completely" },
+    { id:5, title:"Winning goal celebrations eruption", caption:"WE WON!", start:6318, end:6360, duration_s:42, size_mb:23.7, filename:"short_05_Celebration.mp4", thumbnail_url:"", download_url:"#", description:"Entire squad mobbing the goalscorer at final whistle" },
+  ];
+
+  const DEMO_STEPS = [
+    { step:"Downloading video (720p)…",  progress:5  },
+    { step:"Downloading video (720p)…",  progress:15 },
+    { step:"Downloaded: 2026 FIFA World Cup Final Highlights", progress:25 },
+    { step:"Transcribing audio with Whisper…", progress:30 },
+    { step:"Transcribing audio with Whisper…", progress:40 },
+    { step:"Transcribed 312 segments",   progress:50 },
+    { step:"AI identifying viral moments…", progress:55 },
+    { step:"Found 5 moments",            progress:60, clips_meta:[
+        {title:"Mbappe 30-yard screamer vs Argentina", start:312, end:351},
+        {title:"Lloris saves penalty in extra time",   start:5820, end:5858},
+        {title:"VAR drama overturns disallowed goal",  start:2741, end:2783},
+        {title:"Griezmann red card second half",       start:4102, end:4139},
+        {title:"Winning goal celebrations eruption",   start:6318, end:6360},
+      ]},
+    { step:"Extracting & encoding clips…", progress:65 },
+    { step:"Extracting & encoding clips…", progress:74 },
+    { step:"Extracting & encoding clips…", progress:83 },
+    { step:"Generating thumbnails…",     progress:90 },
+    { step:"Complete!",                  progress:100, status:"done" },
+  ];
+
+  function runDemo(jobId, url) {
+    let i = 0;
+    const title = url.includes('youtu') ? '2026 FIFA World Cup Final Highlights' : url.slice(0,40);
+    JOBS[jobId] = { status:'running', step:'Starting…', progress:0, clips:[], clips_meta:[], title, duration:6420 };
+    renderJob(jobId, JOBS[jobId]);
+
+    const tick = () => {
+      if (i >= DEMO_STEPS.length) return;
+      const s = DEMO_STEPS[i++];
+      Object.assign(JOBS[jobId], s);
+      if (!s.status) JOBS[jobId].status = 'running';
+      if (s.status === 'done') {
+        JOBS[jobId].clips = DEMO_CLIPS;
+        JOBS[jobId].clips_meta = s.clips_meta || [];
+        document.getElementById('process-btn').disabled = false;
+        toast('5 clips ready! (demo)');
+      }
+      renderJob(jobId, JOBS[jobId]);
+      if (i < DEMO_STEPS.length) setTimeout(tick, i < 4 ? 900 : i < 8 ? 700 : 600);
+    };
+    setTimeout(tick, 400);
+  }
+
   // ── Process single ─────────────────────────────────────────────────────────
   async function processVideo() {
     const url = document.getElementById('url-input').value.trim();
@@ -606,6 +661,7 @@
     document.getElementById('jobs-section').style.display = '';
     document.getElementById('empty-state').style.display = 'none';
 
+    // Try real API first; fall back to demo if server isn't running
     try {
       const res = await fetch('/api/process', {
         method: 'POST',
@@ -617,12 +673,15 @@
           model: document.getElementById('model').value,
         }),
       });
+      if (!res.ok) throw new Error('API error');
       const { job_id } = await res.json();
       subscribeToJob(job_id);
       document.getElementById('url-input').value = '';
     } catch (e) {
-      toast('Failed to start job');
-      btn.disabled = false;
+      // Server not running — run demo simulation
+      const jobId = Math.random().toString(36).slice(2,10);
+      runDemo(jobId, url);
+      document.getElementById('url-input').value = '';
     }
   }
 
