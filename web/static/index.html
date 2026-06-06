@@ -422,67 +422,90 @@
   const STEPS = ['Download', 'Transcribe', 'AI Analyse', 'Extract', 'Thumbnails'];
   const STEP_THRESHOLDS = [0, 25, 50, 62, 90];
   const IS_LOCAL = window.location.protocol === 'file:';
-
-  // Single source of truth for all job state (lowercase, consistent)
   const jobs = {};
+
+  // Pre-generated demo video files (real MP4s, ~4KB each)
+  const DEMO_DATA_URLS = [
+  "data:video/mp4;base64,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",
+  "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAACWRtZGF0AAACVAYF//9Q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzE5MSA0NjEzYWMzIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTAgcmVmPTEgZGVibG9jaz0wOjA6MCBhbmFseXNlPTA6MCBtZT1kaWEgc3VibWU9MCBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MCBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9NiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1dD0wIGludHJhX3JlZnJlc2g9MCByYz1jcmYgbWJ0cmVlPTAgY3JmPTQ1LjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MACAAAABjmWIhDoRigACADHDScnJycnJycnJycnJycnJydddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAACS0GaICq9X+r/V/q/1f6v9X+r/V/q/1f6v9X+r/V/q/1fP5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P5/P4AAAAB0GaQCqAP/AAAAAHQZpgLoA/8AAAAAdBmoAugD/wAAAAB0GaoC6AP/AAAAAHQZrALoA/8AAAAAdBmuAugD/wAAAAB0GbAC6AP/AAAAAHQZsgLoA/8AAAAAdBm0AugD/wAAAAB0GbYC6AP/AAAAAHQZuALoA/8AAAAAdBm6AugD/wAAAAB0GbwC6AP/AAAAAHQZvgLoA/8AAAAAdB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",
+  "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAABx9tZGF0AAACVAYF//9Q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzE5MSA0NjEzYWMzIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTAgcmVmPTEgZGVibG9jaz0wOjA6MCBhbmFseXNlPTA6MCBtZT1kaWEgc3VibWU9MCBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MCBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9NiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1dD0wIGludHJhX3JlZnJlc2g9MCByYz1jcmYgbWJ0cmVlPTAgY3JmPTQ1LjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MACAAAABjWWIhDoRigAHfHDJycnJycnJycnJycnJycnJ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111114AAAAAHQZogKoA/8AAAAAdBmkAqgD/wAAAAB0GaYC6AP/AAAAAHQZqALoA/8AAAAAdBmqAugD/wAAAAB0GawC6AP/AAAAAHQZrgLoA/8AAAAAdBmwAugD/wAAAAB0GbIC6AP/AAAAAHQZtALoA/8AAAAAdBm2AugD/wAAAAB0GbgC6AP/AAAAAHQZugLoA/8AAAAAdBm8AugD/wAAAAB0Gb4C6AP/AAAAAHQZoALoA/8AAAAAdBmiAugD/wAAAAB0GaQC6AP/AAAAAHQZpgLoA/8AAAAAdBmoAugD/wAAAAB0GaoC6AP/AAAAAHQZrALoA/8AAAAAdBmuAugD/wAAAAB0GbAC6AP/AAAAAHQZsgLoA/8AAAAAdBm0AugD/wAAAAB0GbYC6AP/AAAAAHQZuALoA/8AAAAAdBm6AugD/wAAAAB0GbwC6AP/AAAAAHQZvgLoA/8AAAAAdBmgAugD/wAAAAB0GaIC6AP/AAAAAHQZpALoA/8AAAAAdBmmAugD/wAAAAB0GagC6AP/AAAAAHQZqgLoA/8AAAAAdBmsAugD/wAAAAB0Ga4C6AP/AAAAAHQZsALoA/8AAAAAdBmyAugD/wAAAAB0GbQC6AP/AAAAAHQZtgLoA/8AAAAAdBm4AugD/wAAAAB0GboC6AP/AAAAAHQZvALoA/8AAAAAdBm+AugD/wAAAAB0GaAC6AP/AAAAAHQZogLoA/8AAAAAdBmkAugD/wAAAAB0GaYC6AP/AAAAAHQZqALoA/8AAAAAdBmqAugD/wAAAAB0GawC6AP/AAAAAHQZrgLoA/8AAAAAdBmwAugD/wAAAAB0GbIC6AP/AAAAAHQZtALoA/8AAAAAdBm2AugD/wAAAAB0GbgC6AP/AAAAAHQZugLoA/8AAAAAdBm8AugD/wAAAAB0Gb4C6AP/AAAAAHQZoALoA/8AAAAAdBmiAugD/wAAAAB0GaQC6AP/AAAAAHQZpgLoA/8AAAAAdBmoAugD/wAAAAB0GaoC6AP/AAAAAHQZrALoA/8AAAAAdBmuAugD/wAAAAB0GbAC6AP/AAAAAHQZsgLoA/8AAAAAdBm0AugD/wAAAET21vb3YAAABsbXZoZAAAAAAAAAAAAAAAAAAAA+gAAAu4AAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAN6dHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAQAAAAAAAAu4AAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAEOAAAB4AAAAAAAJGVkdHMAAAAcZWxzdAAAAAAAAAABAAALuAAAAAAAAQAAAAAC8m1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAMgAAAJYAVcQAAAAAAC1oZGxyAAAAAAAAAAB2aWRlAAAAAAAAAAAAAAAAVmlkZW9IYW5kbGVyAAAAAp1taW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsIAAAAAEAAAJdc3RibAAAALlzdHNkAAAAAAAAAAEAAACpYXZjMQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAEOAeAASAAAAEgAAAAAAAAAARRMYXZjNjEuMy4xMDAgbGlieDI2NAAAAAAAAAAAAAAAABj//wAAAC9hdmNDAULAFf/hABdnQsAV2gRD3rwEQAAAAwBAAAAMg8WLqAEABWjOATcgAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAEugAABLoAAAAGHN0dHMAAAAAAAAAAQAAAEsAAAIAAAAAFHN0c3MAAAAAAAAAAQAAAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAEsAAAABAAABQHN0c3oAAAAAAAAAAAAAAEsAAAPpAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAAUc3RjbwAAAAAAAAABAAAAMAAAAGF1ZHRhAAAAWW1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALGlsc3QAAAAkqXRvbwAAABxkYXRhAAAAAQAAAABMYXZmNjEuMS4xMDA=",
+  "data:video/mp4;base64,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",
+  "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAABx5tZGF0AAACVAYF//9Q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzE5MSA0NjEzYWMzIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTAgcmVmPTEgZGVibG9jaz0wOjA6MCBhbmFseXNlPTA6MCBtZT1kaWEgc3VibWU9MCBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MCBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9NiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1dD0wIGludHJhX3JlZnJlc2g9MCByYz1jcmYgbWJ0cmVlPTAgY3JmPTQ1LjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MACAAAABjGWIhDoRigAH450nJycnJycnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXgAAAAdBmiAqgD/wAAAAB0GaQCqAP/AAAAAHQZpgLoA/8AAAAAdBmoAugD/wAAAAB0GaoC6AP/AAAAAHQZrALoA/8AAAAAdBmuAugD/wAAAAB0GbAC6AP/AAAAAHQZsgLoA/8AAAAAdBm0AugD/wAAAAB0GbYC6AP/AAAAAHQZuALoA/8AAAAAdBm6AugD/wAAAAB0GbwC6AP/AAAAAHQZvgLoA/8AAAAAdBmgAugD/wAAAAB0GaIC6AP/AAAAAHQZpALoA/8AAAAAdBmmAugD/wAAAAB0GagC6AP/AAAAAHQZqgLoA/8AAAAAdBmsAugD/wAAAAB0Ga4C6AP/AAAAAHQZsALoA/8AAAAAdBmyAugD/wAAAAB0GbQC6AP/AAAAAHQZtgLoA/8AAAAAdBm4AugD/wAAAAB0GboC6AP/AAAAAHQZvALoA/8AAAAAdBm+AugD/wAAAAB0GaAC6AP/AAAAAHQZogLoA/8AAAAAdBmkAugD/wAAAAB0GaYC6AP/AAAAAHQZqALoA/8AAAAAdBmqAugD/wAAAAB0GawC6AP/AAAAAHQZrgLoA/8AAAAAdBmwAugD/wAAAAB0GbIC6AP/AAAAAHQZtALoA/8AAAAAdBm2AugD/wAAAAB0GbgC6AP/AAAAAHQZugLoA/8AAAAAdBm8AugD/wAAAAB0Gb4C6AP/AAAAAHQZoALoA/8AAAAAdBmiAugD/wAAAAB0GaQC6AP/AAAAAHQZpgLoA/8AAAAAdBmoAugD/wAAAAB0GaoC6AP/AAAAAHQZrALoA/8AAAAAdBmuAugD/wAAAAB0GbAC6AP/AAAAAHQZsgLoA/8AAAAAdBm0AugD/wAAAAB0GbYC6AP/AAAAAHQZuALoA/8AAAAAdBm6AugD/wAAAAB0GbwC6AP/AAAAAHQZvgLoA/8AAAAAdBmgAugD/wAAAAB0GaIC6AP/AAAAAHQZpALoA/8AAAAAdBmmAugD/wAAAAB0GagC6AP/AAAAAHQZqgLoA/8AAAAAdBmsAugD/wAAAAB0Ga4C6AP/AAAAAHQZsALoA/8AAAAAdBmyAugD/wAAAAB0GbQC6AP/AAAARPbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAC7gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAA3p0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAC7gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQ4AAAHgAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAu4AAAAAAABAAAAAALybWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAyAAAAlgBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAACnW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAl1zdGJsAAAAuXN0c2QAAAAAAAAAAQAAAKlhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAQ4B4ABIAAAASAAAAAAAAAABFExhdmM2MS4zLjEwMCBsaWJ4MjY0AAAAAAAAAAAAAAAAGP//AAAAL2F2Y0MBQsAV/+EAF2dCwBXaBEPevARAAAADAEAAAAyDxYuoAQAFaM4BNyAAAAAQcGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAAS5QAAEuUAAAAYc3R0cwAAAAAAAAABAAAASwAAAgAAAAAUc3RzcwAAAAAAAAABAAAAAQAAABxzdHNjAAAAAAAAAAEAAAABAAAASwAAAAEAAAFAc3RzegAAAAAAAAAAAAAASwAAA+gAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAAABRzdGNvAAAAAAAAAAEAAAAwAAAAYXVkdGEAAABZbWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAsaWxzdAAAACSpdG9vAAAAHGRhdGEAAAABAAAAAExhdmY2MS4xLjEwMA==",
+];
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function formatDur(s) {
+    const m = Math.floor(s/60);
+    return m ? `${m}m ${Math.round(s%60)}s` : `${Math.round(s)}s`;
+  }
+  function stepIndex(p) {
+    for (let i=STEP_THRESHOLDS.length-1;i>=0;i--)
+      if(p>=STEP_THRESHOLDS[i]) return i;
+    return 0;
+  }
+  function buildSteps(p) {
+    const cur=stepIndex(p);
+    return STEPS.map((s,i)=>{
+      const cls=i<cur?'done':i===cur?'active':'pending';
+      return `<span class="step-pill ${cls}">${i<cur?'✓ ':''}${s}</span>`;
+    }).join('');
+  }
+
+  // Parse a YouTube URL into a display title
+  function titleFromUrl(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes('youtube.com')) {
+        const v = u.searchParams.get('v');
+        return v ? `YouTube · ${v}` : u.hostname + u.pathname;
+      }
+      if (u.hostname.includes('youtu.be')) {
+        return `YouTube · ${u.pathname.replace('/','')}`;
+      }
+      return u.hostname + u.pathname;
+    } catch {
+      return url.length > 55 ? url.slice(0,52)+'…' : url;
+    }
+  }
 
   // ── Mode tabs ──────────────────────────────────────────────────────────────
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
       tab.classList.add('active');
       const mode = tab.dataset.mode;
-      document.getElementById('single-mode').style.display = mode === 'single' ? '' : 'none';
-      document.getElementById('batch-mode').style.display = mode === 'batch' ? '' : 'none';
+      document.getElementById('single-mode').style.display = mode==='single'?'':'none';
+      document.getElementById('batch-mode').style.display  = mode==='batch' ?'':'none';
     });
   });
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   function toast(msg) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  function escHtml(str) {
-    return String(str || '')
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function formatDur(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = Math.round(seconds % 60);
-    return m ? `${m}m ${s}s` : `${s}s`;
-  }
-
-  function stepIndex(progress) {
-    for (let i = STEP_THRESHOLDS.length - 1; i >= 0; i--) {
-      if (progress >= STEP_THRESHOLDS[i]) return i;
-    }
-    return 0;
-  }
-
-  function buildSteps(progress) {
-    const cur = stepIndex(progress);
-    return STEPS.map((s, i) => {
-      const cls = i < cur ? 'done' : i === cur ? 'active' : 'pending';
-      return `<span class="step-pill ${cls}">${i < cur ? '✓ ' : ''}${s}</span>`;
-    }).join('');
+    const el=document.getElementById('toast');
+    el.textContent=msg; el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'),3000);
   }
 
   // ── Clip card ──────────────────────────────────────────────────────────────
   function clipCard(c) {
-    // Normalise duration field — API returns duration_s, demo also uses duration_s
     const dur = c.duration_s ?? c.duration ?? '?';
-    const hasThumb = c.thumbnail_url && !c.thumbnail_url.endsWith('/') && c.thumbnail_url !== '';
+    const hasThumb = c.thumbnail_url && c.thumbnail_url !== '' && !c.thumbnail_url.endsWith('/');
     const thumb = hasThumb
       ? `<img class="clip-thumb" src="${escHtml(c.thumbnail_url)}" alt="" loading="lazy"
              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
       : '';
-    const placeholder = `<div class="clip-thumb-placeholder" style="${hasThumb ? 'display:none' : ''}">⚽</div>`;
+    const placeholder = `<div class="clip-thumb-placeholder" style="${hasThumb?'display:none':''}">⚽</div>`;
+
+    const isDemo = c.download_url && c.download_url.startsWith('data:');
+    const isReal = c.download_url && c.download_url.startsWith('/clips');
+    const downloadAttr = (isDemo || isReal) ? `download="${escHtml(c.filename)}"` : '';
+    const downloadHref = (isDemo || isReal) ? escHtml(c.download_url) : '#';
+    const btnLabel = isReal ? 'Download Short' : isDemo ? 'Download (Demo)' : 'No file';
+    const btnStyle = (!isDemo && !isReal) ? 'opacity:0.4;cursor:default;pointer-events:none' : '';
 
     return `
       <div class="clip-card">
@@ -490,16 +513,12 @@
         <div class="clip-info">
           <div class="clip-num">CLIP ${c.id}</div>
           <div class="clip-title">${escHtml(c.title)}</div>
-          ${c.caption ? `<span class="clip-caption">${escHtml(c.caption)}</span>` : ''}
+          ${c.caption?`<span class="clip-caption">${escHtml(c.caption)}</span>`:''}
           <div class="clip-stats">
             <span>⏱ ${dur}s</span>
             <span>💾 ${c.size_mb} MB</span>
           </div>
-          <a class="clip-download" href="${escHtml(c.download_url)}"
-             ${c.download_url !== '#' ? `download="${escHtml(c.filename)}"` : 'onclick="return false"'}
-             style="${c.download_url === '#' ? 'opacity:0.5;cursor:default' : ''}">
-            ${c.download_url === '#' ? 'Demo — no file' : 'Download Short'}
-          </a>
+          <a class="clip-download" href="${downloadHref}" ${downloadAttr} style="${btnStyle}">${btnLabel}</a>
         </div>
       </div>`;
   }
@@ -507,7 +526,6 @@
   // ── Job card render ────────────────────────────────────────────────────────
   function renderJob(jobId, state) {
     let card = document.getElementById(`job-${jobId}`);
-
     if (!card) {
       card = document.createElement('div');
       card.id = `job-${jobId}`;
@@ -529,49 +547,35 @@
               <div class="progress-fill" id="jbar-${jobId}" style="width:0%"></div>
             </div>
           </div>
-          <div class="steps" id="jsteps-${jobId}"></div>
-          <div id="jerr-${jobId}"></div>
+          <div class="steps"     id="jsteps-${jobId}"></div>
+          <div                   id="jerr-${jobId}"></div>
           <div class="clips-grid" id="jclips-${jobId}"></div>
         </div>`;
-      card.querySelector('.job-header').addEventListener('click', () => {
-        card.classList.toggle('expanded');
-      });
+      card.querySelector('.job-header').addEventListener('click', ()=>card.classList.toggle('expanded'));
       document.getElementById('jobs-list').prepend(card);
     }
 
-    // Status classes
-    const statusClass = state.status === 'done' ? 'done' : state.status === 'error' ? 'error' : '';
     const wasExpanded = card.classList.contains('expanded');
-    card.className = ['job-card', statusClass, wasExpanded ? 'expanded' : ''].filter(Boolean).join(' ');
+    const statusCls = state.status==='done'?'done':state.status==='error'?'error':'';
+    card.className = ['job-card', statusCls, wasExpanded?'expanded':''].filter(Boolean).join(' ');
+    card.querySelector('.job-status-dot').className = `job-status-dot dot-${state.status||'queued'}`;
 
-    // Dot
-    card.querySelector('.job-status-dot').className =
-      `job-status-dot dot-${state.status || 'queued'}`;
+    document.getElementById(`jtitle-${jobId}`).textContent = state.title || jobId;
+    document.getElementById(`jmeta-${jobId}`).textContent  = state.duration ? formatDur(state.duration) : '';
 
-    // Title / meta
-    const titleEl = document.getElementById(`jtitle-${jobId}`);
-    if (titleEl) titleEl.textContent = state.title || jobId;
-    const metaEl = document.getElementById(`jmeta-${jobId}`);
-    if (metaEl) metaEl.textContent = state.duration ? formatDur(state.duration) : '';
+    const pct = state.progress||0;
+    document.getElementById(`jstep-${jobId}`).textContent  = state.step || '';
+    document.getElementById(`jpct-${jobId}`).textContent   = `${pct}%`;
+    document.getElementById(`jbar-${jobId}`).style.width   = `${pct}%`;
+    document.getElementById(`jsteps-${jobId}`).innerHTML   = buildSteps(pct);
 
-    // Progress
-    const pct = state.progress || 0;
-    document.getElementById(`jstep-${jobId}`).textContent = state.step || '';
-    document.getElementById(`jpct-${jobId}`).textContent  = `${pct}%`;
-    document.getElementById(`jbar-${jobId}`).style.width  = `${pct}%`;
-    document.getElementById(`jsteps-${jobId}`).innerHTML  = buildSteps(pct);
-
-    // Error
     const errEl = document.getElementById(`jerr-${jobId}`);
-    if (errEl) errEl.innerHTML = state.error
-      ? `<div class="error-msg">Error: ${escHtml(state.error)}</div>` : '';
+    errEl.innerHTML = state.error ? `<div class="error-msg">Error: ${escHtml(state.error)}</div>` : '';
 
-    // Clips (only re-render when count changes)
     if (state.clips && state.clips.length > 0) {
       const clipsEl = document.getElementById(`jclips-${jobId}`);
-      if (clipsEl && clipsEl.children.length !== state.clips.length) {
+      if (clipsEl.children.length !== state.clips.length)
         clipsEl.innerHTML = state.clips.map(clipCard).join('');
-      }
     }
   }
 
@@ -583,7 +587,7 @@
       jobs[jobId] = state;
       renderJob(jobId, state);
       if (state.status === 'done') {
-        toast(`${state.clips.length} clips ready!`);
+        toast(`${state.clips.length} clips ready — downloading!`);
         es.close();
         document.getElementById('process-btn').disabled = false;
       } else if (state.status === 'error') {
@@ -595,75 +599,75 @@
     es.onerror = () => es.close();
   }
 
-  // ── Demo mode ──────────────────────────────────────────────────────────────
-  const DEMO_CLIPS = [
-    { id:1, title:'Mbappe 30-yard screamer vs Argentina', caption:'INSANE GOAL',
-      duration_s:39, size_mb:22.4, filename:'short_01_Mbappe_screamer.mp4',
-      thumbnail_url:'', download_url:'#' },
-    { id:2, title:'Lloris saves penalty in extra time',   caption:'SUPERHERO SAVE',
-      duration_s:38, size_mb:20.1, filename:'short_02_Lloris_save.mp4',
-      thumbnail_url:'', download_url:'#' },
-    { id:3, title:'VAR drama overturns disallowed goal',  caption:'VAR CHAOS',
-      duration_s:42, size_mb:24.8, filename:'short_03_VAR_drama.mp4',
-      thumbnail_url:'', download_url:'#' },
-    { id:4, title:'Griezmann red card second half',       caption:'CONTROVERSIAL!',
-      duration_s:37, size_mb:19.3, filename:'short_04_Griezmann_red.mp4',
-      thumbnail_url:'', download_url:'#' },
-    { id:5, title:'Winning goal celebrations eruption',   caption:'WE WON!',
-      duration_s:42, size_mb:23.7, filename:'short_05_Celebration.mp4',
-      thumbnail_url:'', download_url:'#' },
-  ];
+  // ── Demo clips (built from the actual URL input) ───────────────────────────
+  function buildDemoClips(url) {
+    const vid = titleFromUrl(url);
+    const labels = [
+      ['INSANE GOAL',    'Stunning long-range strike'],
+      ['SUPERHERO SAVE', 'Goalkeeper stops the penalty'],
+      ['VAR CHAOS',      'Goal overturned by VAR review'],
+      ['CONTROVERSIAL!', 'Red card changes the game'],
+      ['WE WON!',        'Final whistle celebrations'],
+    ];
+    return labels.map(([ caption, desc ], i) => ({
+      id: i+1,
+      title: `${vid} — ${desc}`,
+      caption,
+      duration_s: [39,38,42,37,42][i],
+      size_mb:    [22.4,20.1,24.8,19.3,23.7][i],
+      filename:   `short_0${i+1}_${caption.replace(/[^a-z0-9]/gi,'_').toLowerCase()}.mp4`,
+      thumbnail_url: '',
+      download_url: DEMO_DATA_URLS[i],   // real downloadable MP4
+    }));
+  }
 
-  const DEMO_STEPS = [
-    { step:'Downloading video (720p)…',                   progress: 5  },
-    { step:'Downloading video (720p)…',                   progress: 18 },
-    { step:'Downloaded: 2026 FIFA World Cup Highlights',  progress: 25 },
-    { step:'Transcribing audio with Whisper…',            progress: 32 },
-    { step:'Transcribing audio with Whisper…',            progress: 44 },
-    { step:'Transcribed 312 segments',                    progress: 50 },
-    { step:'AI identifying viral moments…',               progress: 55 },
-    { step:'Found 5 viral moments',                       progress: 60 },
-    { step:'Extracting & encoding clips…',                progress: 67 },
-    { step:'Extracting & encoding clips…',                progress: 76 },
-    { step:'Extracting & encoding clips…',                progress: 85 },
-    { step:'Generating thumbnails…',                      progress: 92 },
-    { step:'Complete!',                                   progress:100, done: true },
+  const DEMO_STEP_TEMPLATES = [
+    p => ({ step: 'Downloading video (720p)…',                  progress: p }),
+    p => ({ step: 'Downloading video (720p)…',                  progress: p }),
+    p => ({ step: 'Downloaded successfully',                     progress: 25 }),
+    p => ({ step: 'Transcribing audio with Whisper…',           progress: p }),
+    p => ({ step: 'Transcribing audio with Whisper…',           progress: p }),
+    p => ({ step: 'Transcribed 300+ commentary segments',        progress: 50 }),
+    p => ({ step: 'AI identifying viral moments…',              progress: 55 }),
+    p => ({ step: 'Found 5 viral moments',                      progress: 60 }),
+    p => ({ step: 'Extracting & encoding clips (parallel)…',    progress: p }),
+    p => ({ step: 'Extracting & encoding clips (parallel)…',    progress: p }),
+    p => ({ step: 'Extracting & encoding clips (parallel)…',    progress: p }),
+    p => ({ step: 'Generating thumbnails…',                     progress: 92 }),
+    p => ({ step: 'Complete!',                                   progress:100, done:true }),
   ];
+  const DEMO_PROGRESSES = [5,18,25,32,44,50,55,60,68,77,86,92,100];
 
   function runDemo(jobId, url) {
-    const title = url.includes('youtu')
-      ? '2026 FIFA World Cup Final Highlights'
-      : (url.length > 45 ? url.slice(0, 42) + '…' : url);
-
-    jobs[jobId] = {
-      status: 'running', step: 'Starting…', progress: 0,
-      clips: [], title, duration: 6420,
-    };
+    const title = titleFromUrl(url);
+    jobs[jobId] = { status:'running', step:'Starting…', progress:0, clips:[], title, duration:6420 };
     renderJob(jobId, jobs[jobId]);
 
     let i = 0;
+    const demoClips = buildDemoClips(url);
+
     function tick() {
-      if (i >= DEMO_STEPS.length) return;
-      const s = DEMO_STEPS[i++];
+      if (i >= DEMO_STEP_TEMPLATES.length) return;
+      const s = DEMO_STEP_TEMPLATES[i](DEMO_PROGRESSES[i]);
+      i++;
       jobs[jobId].step     = s.step;
       jobs[jobId].progress = s.progress;
 
       if (s.done) {
         jobs[jobId].status = 'done';
-        jobs[jobId].clips  = DEMO_CLIPS;
+        jobs[jobId].clips  = demoClips;
         renderJob(jobId, jobs[jobId]);
         document.getElementById('process-btn').disabled = false;
-        toast('5 clips ready! (demo mode)');
+        toast('5 demo clips ready — click Download (Demo) on each!');
         return;
       }
-
       renderJob(jobId, jobs[jobId]);
-      setTimeout(tick, i <= 3 ? 850 : i <= 8 ? 700 : 550);
+      setTimeout(tick, i<=3 ? 900 : i<=8 ? 720 : 560);
     }
-    setTimeout(tick, 300);
+    setTimeout(tick, 350);
   }
 
-  // ── Process single video ───────────────────────────────────────────────────
+  // ── Process single ─────────────────────────────────────────────────────────
   async function processVideo() {
     const url = document.getElementById('url-input').value.trim();
     if (!url) { toast('Please paste a YouTube URL first'); return; }
@@ -674,18 +678,15 @@
     document.getElementById('empty-state').style.display  = 'none';
     document.getElementById('url-input').value = '';
 
-    // If opened as a local file, go straight to demo — no server available
     if (IS_LOCAL) {
-      const jobId = Math.random().toString(36).slice(2, 10);
-      runDemo(jobId, url);
+      runDemo(Math.random().toString(36).slice(2,10), url);
       return;
     }
 
-    // Try live server
     try {
       const res = await fetch('/api/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           url,
           num_clips: +document.getElementById('num-clips').value,
@@ -697,27 +698,22 @@
       const { job_id } = await res.json();
       subscribeToJob(job_id);
     } catch (err) {
-      // Server unreachable — fall back to demo
       console.warn('Server unavailable, running demo:', err.message);
-      const jobId = Math.random().toString(36).slice(2, 10);
-      runDemo(jobId, url);
+      runDemo(Math.random().toString(36).slice(2,10), url);
     }
   }
 
   // ── Process batch ──────────────────────────────────────────────────────────
   async function processBatch() {
     const raw  = document.getElementById('batch-urls').value.trim();
-    const urls = raw.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
+    const urls = raw.split('\n').map(u=>u.trim()).filter(u=>u.startsWith('http'));
     if (!urls.length) { toast('No valid URLs found'); return; }
 
     document.getElementById('jobs-section').style.display = '';
     document.getElementById('empty-state').style.display  = 'none';
 
     if (IS_LOCAL) {
-      urls.forEach(url => {
-        const jobId = Math.random().toString(36).slice(2, 10);
-        runDemo(jobId, url);
-      });
+      urls.forEach(u => runDemo(Math.random().toString(36).slice(2,10), u));
       document.getElementById('batch-urls').value = '';
       toast(`${urls.length} demo jobs started`);
       return;
@@ -725,8 +721,8 @@
 
     try {
       const res = await fetch('/api/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           urls,
           num_clips: +document.getElementById('num-clips').value,
@@ -739,17 +735,13 @@
       document.getElementById('batch-urls').value = '';
       toast(`${job_ids.length} jobs started`);
     } catch {
-      urls.forEach(url => {
-        const jobId = Math.random().toString(36).slice(2, 10);
-        runDemo(jobId, url);
-      });
+      urls.forEach(u => runDemo(Math.random().toString(36).slice(2,10), u));
       toast(`${urls.length} demo jobs started`);
     }
   }
 
-  // Enter key triggers generate
   document.getElementById('url-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') processVideo();
+    if (e.key==='Enter') processVideo();
   });
 </script>
 </body>
