@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Football Shorts Clipper</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --border: #2a2a2a;
+      --accent: #00e676;
+      --accent-dim: #00c853;
+      --red: #ff5252;
+      --text: #f0f0f0;
+      --muted: #888;
+      --card: #1a1a1a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 0 0 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #0d1f0d 0%, #111 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header .logo { font-size: 32px; }
+    header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    header h1 span { color: var(--accent); }
+    header .badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: #000;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── Input panel ── */
+    .input-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      margin-top: 28px;
+    }
+    .input-panel h2 { font-size: 15px; color: var(--muted); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+
+    .url-row { display: flex; gap: 10px; }
+    .url-row input {
+      flex: 1;
+      background: #111;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 16px;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .url-row input:focus { border-color: var(--accent); }
+    .url-row input::placeholder { color: var(--muted); }
+
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 26px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-dim); }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+    .btn.secondary {
+      background: #222;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn.secondary:hover { background: #2a2a2a; }
+
+    /* Settings row */
+    .settings {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .setting-group { display: flex; flex-direction: column; gap: 5px; min-width: 110px; }
+    .setting-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+    .setting-group select {
+      background: #111;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+    .setting-group select:focus { border-color: var(--accent); }
+
+    /* Batch area */
+    .batch-area {
+      display: none;
+      margin-top: 14px;
+    }
+    .batch-area textarea {
+      width: 100%;
+      background: #111;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: monospace;
+      resize: vertical;
+      min-height: 90px;
+      outline: none;
+    }
+    .batch-area textarea:focus { border-color: var(--accent); }
+
+    .mode-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab {
+      background: #111;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+
+    /* ── Jobs list ── */
+    #jobs-section { margin-top: 36px; }
+    #jobs-section h2 { font-size: 15px; color: var(--muted); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+
+    .job-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 20px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .job-card.done { border-color: #1a3a1a; }
+    .job-card.error { border-color: #3a1a1a; }
+
+    .job-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+    .job-status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-running { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+    .dot-done { background: var(--accent); }
+    .dot-error { background: var(--red); }
+    .dot-queued { background: #555; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .job-title { font-size: 14px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .job-meta { font-size: 12px; color: var(--muted); }
+    .job-chevron { color: var(--muted); transition: transform 0.2s; font-size: 18px; }
+    .job-card.expanded .job-chevron { transform: rotate(180deg); }
+
+    .job-body { display: none; padding: 16px 20px 20px; }
+    .job-card.expanded .job-body { display: block; }
+
+    /* Progress bar */
+    .progress-wrap { margin-bottom: 12px; }
+    .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .progress-bar { height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    /* Steps */
+    .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .step-pill {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .step-pill.active { background: var(--accent); color: #000; }
+    .step-pill.done { background: #1a3a1a; color: var(--accent); }
+    .step-pill.pending { background: #222; color: var(--muted); }
+
+    /* Error message */
+    .error-msg {
+      background: #1a0000;
+      border: 1px solid #3a1a1a;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+
+    /* ── Clips grid ── */
+    .clips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .clip-card {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .clip-thumb {
+      width: 100%;
+      aspect-ratio: 9/16;
+      object-fit: cover;
+      background: #0a0a0a;
+      display: block;
+      max-height: 180px;
+    }
+    .clip-thumb-placeholder {
+      width: 100%;
+      height: 180px;
+      background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+    }
+    .clip-info { padding: 14px; }
+    .clip-num {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .clip-title { font-size: 13px; font-weight: 600; margin: 4px 0 6px; line-height: 1.35; }
+    .clip-caption {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .clip-stats { font-size: 11px; color: var(--muted); display: flex; gap: 12px; margin-bottom: 12px; }
+    .clip-download {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: var(--accent);
+      color: #000;
+      text-decoration: none;
+      border-radius: 8px;
+      padding: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background 0.15s;
+    }
+    .clip-download:hover { background: var(--accent-dim); }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty .emoji { font-size: 48px; display: block; margin-bottom: 12px; }
+    .empty p { font-size: 14px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--accent);
+      color: #000;
+      padding: 11px 22px;
+      border-radius: 24px;
+      font-weight: 700;
+      font-size: 13px;
+      transition: transform 0.3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 600px) {
+      header { padding: 14px 16px; }
+      .input-panel { padding: 18px; }
+      .url-row { flex-direction: column; }
+      .clips-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">⚽</span>
+  <h1>Football <span>Shorts</span> Clipper</h1>
+  <span class="badge">AI-POWERED</span>
+</header>
+
+<div class="container">
+
+  <!-- Input panel -->
+  <div class="input-panel">
+    <div class="mode-tabs">
+      <div class="tab active" data-mode="single">Single Video</div>
+      <div class="tab" data-mode="batch">Batch (multi-URL)</div>
+    </div>
+
+    <h2>Paste YouTube URL</h2>
+
+    <!-- Single mode -->
+    <div id="single-mode">
+      <div class="url-row">
+        <input id="url-input" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
+        <button class="btn" id="process-btn" onclick="processVideo()">Generate Clips</button>
+      </div>
+    </div>
+
+    <!-- Batch mode -->
+    <div id="batch-mode" class="batch-area">
+      <textarea id="batch-urls" placeholder="Paste one YouTube URL per line…"></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn" onclick="processBatch()">Generate All</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings">
+      <div class="setting-group">
+        <label>Clips</label>
+        <select id="num-clips">
+          <option value="3">3 clips</option>
+          <option value="5" selected>5 clips</option>
+          <option value="7">7 clips</option>
+          <option value="10">10 clips</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Quality</label>
+        <select id="quality">
+          <option value="480">480p (fast)</option>
+          <option value="720" selected>720p (balanced)</option>
+          <option value="1080">1080p (best)</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Whisper model</label>
+        <select id="model">
+          <option value="tiny">Tiny (fastest)</option>
+          <option value="small" selected>Small (recommended)</option>
+          <option value="medium">Medium (accurate)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jobs section -->
+  <div id="jobs-section" style="display:none">
+    <h2>Processing Jobs</h2>
+    <div id="jobs-list"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty" id="empty-state">
+    <span class="emoji">🎬</span>
+    <p>Paste a YouTube URL above to generate viral football Shorts</p>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const STEPS = ['Download', 'Transcribe', 'AI Analyse', 'Extract', 'Thumbnails'];
+  const STEP_THRESHOLDS = [0, 25, 50, 62, 90];
+
+  // ── Mode tabs ──────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const mode = tab.dataset.mode;
+      document.getElementById('single-mode').style.display = mode === 'single' ? '' : 'none';
+      document.getElementById('batch-mode').style.display = mode === 'batch' ? '' : 'none';
+    });
+  });
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  // ── Job state helpers ──────────────────────────────────────────────────────
+  const jobs = {};
+
+  function stepIndex(progress) {
+    for (let i = STEP_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (progress >= STEP_THRESHOLDS[i]) return i;
+    }
+    return 0;
+  }
+
+  function formatDur(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return m ? `${m}m ${s}s` : `${s}s`;
+  }
+
+  // ── Render job card ────────────────────────────────────────────────────────
+  function renderJob(jobId, state) {
+    const existing = document.getElementById(`job-${jobId}`);
+    if (!existing) {
+      const card = document.createElement('div');
+      card.className = 'job-card';
+      card.id = `job-${jobId}`;
+      card.innerHTML = buildCardHTML(jobId, state);
+      document.getElementById('jobs-list').prepend(card);
+      card.querySelector('.job-header').addEventListener('click', () => {
+        card.classList.toggle('expanded');
+      });
+      card.classList.add('expanded'); // auto-expand new jobs
+    } else {
+      updateCardHTML(jobId, state);
+    }
+  }
+
+  function buildCardHTML(jobId, state) {
+    return `
+      <div class="job-header">
+        <div class="job-status-dot dot-${state.status || 'queued'}"></div>
+        <div class="job-title" id="jtitle-${jobId}">${escHtml(state.title || jobId)}</div>
+        <div class="job-meta" id="jmeta-${jobId}">${state.duration ? formatDur(state.duration) : ''}</div>
+        <div class="job-chevron">⌄</div>
+      </div>
+      <div class="job-body">
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span id="jstep-${jobId}">${escHtml(state.step || 'Queued')}</span>
+            <span id="jpct-${jobId}">${state.progress || 0}%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="jbar-${jobId}" style="width:${state.progress || 0}%"></div></div>
+        </div>
+        <div class="steps" id="jsteps-${jobId}">${buildSteps(state.progress || 0)}</div>
+        <div id="jerr-${jobId}"></div>
+        <div class="clips-grid" id="jclips-${jobId}"></div>
+      </div>
+    `;
+  }
+
+  function buildSteps(progress) {
+    const cur = stepIndex(progress);
+    return STEPS.map((s, i) => {
+      let cls = i < cur ? 'done' : i === cur ? 'active' : 'pending';
+      return `<span class="step-pill ${cls}">${i < cur ? '✓ ' : ''}${s}</span>`;
+    }).join('');
+  }
+
+  function updateCardHTML(jobId, state) {
+    const card = document.getElementById(`job-${jobId}`);
+    if (!card) return;
+
+    // Update status class
+    card.className = `job-card${state.status === 'done' ? ' done' : state.status === 'error' ? ' error' : ''} ${card.classList.contains('expanded') ? 'expanded' : ''}`;
+
+    // Update dot
+    const dot = card.querySelector('.job-status-dot');
+    dot.className = `job-status-dot dot-${state.status || 'queued'}`;
+
+    // Update title/meta
+    const titleEl = document.getElementById(`jtitle-${jobId}`);
+    if (titleEl && state.title) titleEl.textContent = state.title;
+
+    const metaEl = document.getElementById(`jmeta-${jobId}`);
+    if (metaEl && state.duration) metaEl.textContent = formatDur(state.duration);
+
+    // Update progress
+    const stepEl = document.getElementById(`jstep-${jobId}`);
+    if (stepEl) stepEl.textContent = state.step || '';
+    const pctEl = document.getElementById(`jpct-${jobId}`);
+    if (pctEl) pctEl.textContent = `${state.progress || 0}%`;
+    const barEl = document.getElementById(`jbar-${jobId}`);
+    if (barEl) barEl.style.width = `${state.progress || 0}%`;
+
+    // Steps
+    const stepsEl = document.getElementById(`jsteps-${jobId}`);
+    if (stepsEl) stepsEl.innerHTML = buildSteps(state.progress || 0);
+
+    // Error
+    const errEl = document.getElementById(`jerr-${jobId}`);
+    if (errEl && state.error) {
+      errEl.innerHTML = `<div class="error-msg">Error: ${escHtml(state.error)}</div>`;
+    }
+
+    // Clips
+    if (state.clips && state.clips.length > 0) {
+      const clipsEl = document.getElementById(`jclips-${jobId}`);
+      if (clipsEl && clipsEl.children.length < state.clips.length) {
+        clipsEl.innerHTML = state.clips.map(c => clipCard(c)).join('');
+      }
+    }
+  }
+
+  function clipCard(c) {
+    const thumb = c.thumbnail_url
+      ? `<img class="clip-thumb" src="${c.thumbnail_url}" alt="" loading="lazy">`
+      : `<div class="clip-thumb-placeholder">⚽</div>`;
+    return `
+      <div class="clip-card">
+        ${thumb}
+        <div class="clip-info">
+          <div class="clip-num">Clip ${c.id}</div>
+          <div class="clip-title">${escHtml(c.title)}</div>
+          ${c.caption ? `<span class="clip-caption">${escHtml(c.caption)}</span>` : ''}
+          <div class="clip-stats">
+            <span>⏱ ${c.duration}s</span>
+            <span>💾 ${c.size_mb} MB</span>
+          </div>
+          <a class="clip-download" href="${c.download_url}" download="${escHtml(c.filename)}">Download Short</a>
+        </div>
+      </div>
+    `;
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── SSE subscription ───────────────────────────────────────────────────────
+  function subscribeToJob(jobId) {
+    const es = new EventSource(`/api/progress/${jobId}`);
+    es.onmessage = (evt) => {
+      const state = JSON.parse(evt.data);
+      jobs[jobId] = state;
+      renderJob(jobId, state);
+      if (state.status === 'done') {
+        toast(`${state.clips.length} clips ready!`);
+        es.close();
+        document.getElementById('process-btn').disabled = false;
+      } else if (state.status === 'error') {
+        toast('Processing failed');
+        es.close();
+        document.getElementById('process-btn').disabled = false;
+      }
+    };
+    es.onerror = () => es.close();
+  }
+
+  // ── Process single ─────────────────────────────────────────────────────────
+  async function processVideo() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) { toast('Please enter a YouTube URL'); return; }
+
+    const btn = document.getElementById('process-btn');
+    btn.disabled = true;
+
+    document.getElementById('jobs-section').style.display = '';
+    document.getElementById('empty-state').style.display = 'none';
+
+    try {
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          num_clips: +document.getElementById('num-clips').value,
+          quality: document.getElementById('quality').value,
+          model: document.getElementById('model').value,
+        }),
+      });
+      const { job_id } = await res.json();
+      subscribeToJob(job_id);
+      document.getElementById('url-input').value = '';
+    } catch (e) {
+      toast('Failed to start job');
+      btn.disabled = false;
+    }
+  }
+
+  // ── Process batch ──────────────────────────────────────────────────────────
+  async function processBatch() {
+    const raw = document.getElementById('batch-urls').value.trim();
+    const urls = raw.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
+    if (!urls.length) { toast('No valid URLs found'); return; }
+
+    document.getElementById('jobs-section').style.display = '';
+    document.getElementById('empty-state').style.display = 'none';
+
+    const res = await fetch('/api/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        urls,
+        num_clips: +document.getElementById('num-clips').value,
+        quality: document.getElementById('quality').value,
+        model: document.getElementById('model').value,
+      }),
+    });
+    const { job_ids } = await res.json();
+    job_ids.forEach(subscribeToJob);
+    document.getElementById('batch-urls').value = '';
+    toast(`${job_ids.length} jobs started`);
+  }
+
+  // Enter key submits single URL
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') processVideo();
+  });
+</script>
+</body>
+</html>
