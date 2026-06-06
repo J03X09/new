@@ -418,8 +418,13 @@
 <div id="toast"></div>
 
 <script>
+  // ── Constants ──────────────────────────────────────────────────────────────
   const STEPS = ['Download', 'Transcribe', 'AI Analyse', 'Extract', 'Thumbnails'];
   const STEP_THRESHOLDS = [0, 25, 50, 62, 90];
+  const IS_LOCAL = window.location.protocol === 'file:';
+
+  // Single source of truth for all job state (lowercase, consistent)
+  const jobs = {};
 
   // ── Mode tabs ──────────────────────────────────────────────────────────────
   document.querySelectorAll('.tab').forEach(tab => {
@@ -437,17 +442,14 @@
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2800);
+    setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  // ── Job state helpers ──────────────────────────────────────────────────────
-  const jobs = {};
-
-  function stepIndex(progress) {
-    for (let i = STEP_THRESHOLDS.length - 1; i >= 0; i--) {
-      if (progress >= STEP_THRESHOLDS[i]) return i;
-    }
-    return 0;
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   function formatDur(seconds) {
@@ -456,130 +458,127 @@
     return m ? `${m}m ${s}s` : `${s}s`;
   }
 
-  // ── Render job card ────────────────────────────────────────────────────────
-  function renderJob(jobId, state) {
-    const existing = document.getElementById(`job-${jobId}`);
-    if (!existing) {
-      const card = document.createElement('div');
-      card.className = 'job-card';
-      card.id = `job-${jobId}`;
-      card.innerHTML = buildCardHTML(jobId, state);
-      document.getElementById('jobs-list').prepend(card);
-      card.querySelector('.job-header').addEventListener('click', () => {
-        card.classList.toggle('expanded');
-      });
-      card.classList.add('expanded'); // auto-expand new jobs
-    } else {
-      updateCardHTML(jobId, state);
+  function stepIndex(progress) {
+    for (let i = STEP_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (progress >= STEP_THRESHOLDS[i]) return i;
     }
-  }
-
-  function buildCardHTML(jobId, state) {
-    return `
-      <div class="job-header">
-        <div class="job-status-dot dot-${state.status || 'queued'}"></div>
-        <div class="job-title" id="jtitle-${jobId}">${escHtml(state.title || jobId)}</div>
-        <div class="job-meta" id="jmeta-${jobId}">${state.duration ? formatDur(state.duration) : ''}</div>
-        <div class="job-chevron">⌄</div>
-      </div>
-      <div class="job-body">
-        <div class="progress-wrap">
-          <div class="progress-label">
-            <span id="jstep-${jobId}">${escHtml(state.step || 'Queued')}</span>
-            <span id="jpct-${jobId}">${state.progress || 0}%</span>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" id="jbar-${jobId}" style="width:${state.progress || 0}%"></div></div>
-        </div>
-        <div class="steps" id="jsteps-${jobId}">${buildSteps(state.progress || 0)}</div>
-        <div id="jerr-${jobId}"></div>
-        <div class="clips-grid" id="jclips-${jobId}"></div>
-      </div>
-    `;
+    return 0;
   }
 
   function buildSteps(progress) {
     const cur = stepIndex(progress);
     return STEPS.map((s, i) => {
-      let cls = i < cur ? 'done' : i === cur ? 'active' : 'pending';
+      const cls = i < cur ? 'done' : i === cur ? 'active' : 'pending';
       return `<span class="step-pill ${cls}">${i < cur ? '✓ ' : ''}${s}</span>`;
     }).join('');
   }
 
-  function updateCardHTML(jobId, state) {
-    const card = document.getElementById(`job-${jobId}`);
-    if (!card) return;
-
-    // Update status class
-    card.className = `job-card${state.status === 'done' ? ' done' : state.status === 'error' ? ' error' : ''} ${card.classList.contains('expanded') ? 'expanded' : ''}`;
-
-    // Update dot
-    const dot = card.querySelector('.job-status-dot');
-    dot.className = `job-status-dot dot-${state.status || 'queued'}`;
-
-    // Update title/meta
-    const titleEl = document.getElementById(`jtitle-${jobId}`);
-    if (titleEl && state.title) titleEl.textContent = state.title;
-
-    const metaEl = document.getElementById(`jmeta-${jobId}`);
-    if (metaEl && state.duration) metaEl.textContent = formatDur(state.duration);
-
-    // Update progress
-    const stepEl = document.getElementById(`jstep-${jobId}`);
-    if (stepEl) stepEl.textContent = state.step || '';
-    const pctEl = document.getElementById(`jpct-${jobId}`);
-    if (pctEl) pctEl.textContent = `${state.progress || 0}%`;
-    const barEl = document.getElementById(`jbar-${jobId}`);
-    if (barEl) barEl.style.width = `${state.progress || 0}%`;
-
-    // Steps
-    const stepsEl = document.getElementById(`jsteps-${jobId}`);
-    if (stepsEl) stepsEl.innerHTML = buildSteps(state.progress || 0);
-
-    // Error
-    const errEl = document.getElementById(`jerr-${jobId}`);
-    if (errEl && state.error) {
-      errEl.innerHTML = `<div class="error-msg">Error: ${escHtml(state.error)}</div>`;
-    }
-
-    // Clips
-    if (state.clips && state.clips.length > 0) {
-      const clipsEl = document.getElementById(`jclips-${jobId}`);
-      if (clipsEl && clipsEl.children.length < state.clips.length) {
-        clipsEl.innerHTML = state.clips.map(c => clipCard(c)).join('');
-      }
-    }
-  }
-
+  // ── Clip card ──────────────────────────────────────────────────────────────
   function clipCard(c) {
-    const thumb = (c.thumbnail_url && !c.thumbnail_url.endsWith('/'))
-      ? `<img class="clip-thumb" src="${c.thumbnail_url}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    // Normalise duration field — API returns duration_s, demo also uses duration_s
+    const dur = c.duration_s ?? c.duration ?? '?';
+    const hasThumb = c.thumbnail_url && !c.thumbnail_url.endsWith('/') && c.thumbnail_url !== '';
+    const thumb = hasThumb
+      ? `<img class="clip-thumb" src="${escHtml(c.thumbnail_url)}" alt="" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
       : '';
-    const placeholder = `<div class="clip-thumb-placeholder" style="${thumb ? 'display:none' : ''}">⚽</div>`;
+    const placeholder = `<div class="clip-thumb-placeholder" style="${hasThumb ? 'display:none' : ''}">⚽</div>`;
+
     return `
       <div class="clip-card">
         ${thumb}${placeholder}
         <div class="clip-info">
-          <div class="clip-num">Clip ${c.id}</div>
+          <div class="clip-num">CLIP ${c.id}</div>
           <div class="clip-title">${escHtml(c.title)}</div>
           ${c.caption ? `<span class="clip-caption">${escHtml(c.caption)}</span>` : ''}
           <div class="clip-stats">
-            <span>⏱ ${c.duration}s</span>
+            <span>⏱ ${dur}s</span>
             <span>💾 ${c.size_mb} MB</span>
           </div>
-          <a class="clip-download" href="${c.download_url}" download="${escHtml(c.filename)}">Download Short</a>
+          <a class="clip-download" href="${escHtml(c.download_url)}"
+             ${c.download_url !== '#' ? `download="${escHtml(c.filename)}"` : 'onclick="return false"'}
+             style="${c.download_url === '#' ? 'opacity:0.5;cursor:default' : ''}">
+            ${c.download_url === '#' ? 'Demo — no file' : 'Download Short'}
+          </a>
         </div>
-      </div>
-    `;
+      </div>`;
   }
 
-  function escHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // ── Job card render ────────────────────────────────────────────────────────
+  function renderJob(jobId, state) {
+    let card = document.getElementById(`job-${jobId}`);
+
+    if (!card) {
+      card = document.createElement('div');
+      card.id = `job-${jobId}`;
+      card.className = 'job-card expanded';
+      card.innerHTML = `
+        <div class="job-header">
+          <div class="job-status-dot"></div>
+          <div class="job-title" id="jtitle-${jobId}"></div>
+          <div class="job-meta"  id="jmeta-${jobId}"></div>
+          <div class="job-chevron">⌄</div>
+        </div>
+        <div class="job-body">
+          <div class="progress-wrap">
+            <div class="progress-label">
+              <span id="jstep-${jobId}"></span>
+              <span id="jpct-${jobId}">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="jbar-${jobId}" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="steps" id="jsteps-${jobId}"></div>
+          <div id="jerr-${jobId}"></div>
+          <div class="clips-grid" id="jclips-${jobId}"></div>
+        </div>`;
+      card.querySelector('.job-header').addEventListener('click', () => {
+        card.classList.toggle('expanded');
+      });
+      document.getElementById('jobs-list').prepend(card);
+    }
+
+    // Status classes
+    const statusClass = state.status === 'done' ? 'done' : state.status === 'error' ? 'error' : '';
+    const wasExpanded = card.classList.contains('expanded');
+    card.className = ['job-card', statusClass, wasExpanded ? 'expanded' : ''].filter(Boolean).join(' ');
+
+    // Dot
+    card.querySelector('.job-status-dot').className =
+      `job-status-dot dot-${state.status || 'queued'}`;
+
+    // Title / meta
+    const titleEl = document.getElementById(`jtitle-${jobId}`);
+    if (titleEl) titleEl.textContent = state.title || jobId;
+    const metaEl = document.getElementById(`jmeta-${jobId}`);
+    if (metaEl) metaEl.textContent = state.duration ? formatDur(state.duration) : '';
+
+    // Progress
+    const pct = state.progress || 0;
+    document.getElementById(`jstep-${jobId}`).textContent = state.step || '';
+    document.getElementById(`jpct-${jobId}`).textContent  = `${pct}%`;
+    document.getElementById(`jbar-${jobId}`).style.width  = `${pct}%`;
+    document.getElementById(`jsteps-${jobId}`).innerHTML  = buildSteps(pct);
+
+    // Error
+    const errEl = document.getElementById(`jerr-${jobId}`);
+    if (errEl) errEl.innerHTML = state.error
+      ? `<div class="error-msg">Error: ${escHtml(state.error)}</div>` : '';
+
+    // Clips (only re-render when count changes)
+    if (state.clips && state.clips.length > 0) {
+      const clipsEl = document.getElementById(`jclips-${jobId}`);
+      if (clipsEl && clipsEl.children.length !== state.clips.length) {
+        clipsEl.innerHTML = state.clips.map(clipCard).join('');
+      }
+    }
   }
 
-  // ── SSE subscription ───────────────────────────────────────────────────────
+  // ── SSE subscription (live server) ────────────────────────────────────────
   function subscribeToJob(jobId) {
     const es = new EventSource(`/api/progress/${jobId}`);
-    es.onmessage = (evt) => {
+    es.onmessage = evt => {
       const state = JSON.parse(evt.data);
       jobs[jobId] = state;
       renderJob(jobId, state);
@@ -588,7 +587,7 @@
         es.close();
         document.getElementById('process-btn').disabled = false;
       } else if (state.status === 'error') {
-        toast('Processing failed');
+        toast('Processing failed — check server logs');
         es.close();
         document.getElementById('process-btn').disabled = false;
       }
@@ -596,72 +595,93 @@
     es.onerror = () => es.close();
   }
 
-  // ── Demo mode simulation ───────────────────────────────────────────────────
+  // ── Demo mode ──────────────────────────────────────────────────────────────
   const DEMO_CLIPS = [
-    { id:1, title:"Mbappe 30-yard screamer vs Argentina", caption:"INSANE GOAL", start:312, end:351, duration_s:39, size_mb:22.4, filename:"short_01_Mbappe_screamer.mp4", thumbnail_url:"", download_url:"#", description:"Unstoppable long-range strike into the top corner" },
-    { id:2, title:"Lloris saves penalty in extra time", caption:"SUPERHERO SAVE", start:5820, end:5858, duration_s:38, size_mb:20.1, filename:"short_02_Lloris_save.mp4", thumbnail_url:"", download_url:"#", description:"Keeper dives full stretch to deny the equaliser" },
-    { id:3, title:"VAR drama overturns disallowed goal", caption:"VAR CHAOS", start:2741, end:2783, duration_s:42, size_mb:24.8, filename:"short_03_VAR_drama.mp4", thumbnail_url:"", download_url:"#", description:"Five-minute review overturns on-field decision" },
-    { id:4, title:"Griezmann red card second half", caption:"CONTROVERSIAL!", start:4102, end:4139, duration_s:37, size_mb:19.3, filename:"short_04_Griezmann_red.mp4", thumbnail_url:"", download_url:"#", description:"Shocking tackle changes the game completely" },
-    { id:5, title:"Winning goal celebrations eruption", caption:"WE WON!", start:6318, end:6360, duration_s:42, size_mb:23.7, filename:"short_05_Celebration.mp4", thumbnail_url:"", download_url:"#", description:"Entire squad mobbing the goalscorer at final whistle" },
+    { id:1, title:'Mbappe 30-yard screamer vs Argentina', caption:'INSANE GOAL',
+      duration_s:39, size_mb:22.4, filename:'short_01_Mbappe_screamer.mp4',
+      thumbnail_url:'', download_url:'#' },
+    { id:2, title:'Lloris saves penalty in extra time',   caption:'SUPERHERO SAVE',
+      duration_s:38, size_mb:20.1, filename:'short_02_Lloris_save.mp4',
+      thumbnail_url:'', download_url:'#' },
+    { id:3, title:'VAR drama overturns disallowed goal',  caption:'VAR CHAOS',
+      duration_s:42, size_mb:24.8, filename:'short_03_VAR_drama.mp4',
+      thumbnail_url:'', download_url:'#' },
+    { id:4, title:'Griezmann red card second half',       caption:'CONTROVERSIAL!',
+      duration_s:37, size_mb:19.3, filename:'short_04_Griezmann_red.mp4',
+      thumbnail_url:'', download_url:'#' },
+    { id:5, title:'Winning goal celebrations eruption',   caption:'WE WON!',
+      duration_s:42, size_mb:23.7, filename:'short_05_Celebration.mp4',
+      thumbnail_url:'', download_url:'#' },
   ];
 
   const DEMO_STEPS = [
-    { step:"Downloading video (720p)…",  progress:5  },
-    { step:"Downloading video (720p)…",  progress:15 },
-    { step:"Downloaded: 2026 FIFA World Cup Final Highlights", progress:25 },
-    { step:"Transcribing audio with Whisper…", progress:30 },
-    { step:"Transcribing audio with Whisper…", progress:40 },
-    { step:"Transcribed 312 segments",   progress:50 },
-    { step:"AI identifying viral moments…", progress:55 },
-    { step:"Found 5 moments",            progress:60, clips_meta:[
-        {title:"Mbappe 30-yard screamer vs Argentina", start:312, end:351},
-        {title:"Lloris saves penalty in extra time",   start:5820, end:5858},
-        {title:"VAR drama overturns disallowed goal",  start:2741, end:2783},
-        {title:"Griezmann red card second half",       start:4102, end:4139},
-        {title:"Winning goal celebrations eruption",   start:6318, end:6360},
-      ]},
-    { step:"Extracting & encoding clips…", progress:65 },
-    { step:"Extracting & encoding clips…", progress:74 },
-    { step:"Extracting & encoding clips…", progress:83 },
-    { step:"Generating thumbnails…",     progress:90 },
-    { step:"Complete!",                  progress:100, status:"done" },
+    { step:'Downloading video (720p)…',                   progress: 5  },
+    { step:'Downloading video (720p)…',                   progress: 18 },
+    { step:'Downloaded: 2026 FIFA World Cup Highlights',  progress: 25 },
+    { step:'Transcribing audio with Whisper…',            progress: 32 },
+    { step:'Transcribing audio with Whisper…',            progress: 44 },
+    { step:'Transcribed 312 segments',                    progress: 50 },
+    { step:'AI identifying viral moments…',               progress: 55 },
+    { step:'Found 5 viral moments',                       progress: 60 },
+    { step:'Extracting & encoding clips…',                progress: 67 },
+    { step:'Extracting & encoding clips…',                progress: 76 },
+    { step:'Extracting & encoding clips…',                progress: 85 },
+    { step:'Generating thumbnails…',                      progress: 92 },
+    { step:'Complete!',                                   progress:100, done: true },
   ];
 
   function runDemo(jobId, url) {
-    let i = 0;
-    const title = url.includes('youtu') ? '2026 FIFA World Cup Final Highlights' : url.slice(0,40);
-    JOBS[jobId] = { status:'running', step:'Starting…', progress:0, clips:[], clips_meta:[], title, duration:6420 };
-    renderJob(jobId, JOBS[jobId]);
+    const title = url.includes('youtu')
+      ? '2026 FIFA World Cup Final Highlights'
+      : (url.length > 45 ? url.slice(0, 42) + '…' : url);
 
-    const tick = () => {
+    jobs[jobId] = {
+      status: 'running', step: 'Starting…', progress: 0,
+      clips: [], title, duration: 6420,
+    };
+    renderJob(jobId, jobs[jobId]);
+
+    let i = 0;
+    function tick() {
       if (i >= DEMO_STEPS.length) return;
       const s = DEMO_STEPS[i++];
-      Object.assign(JOBS[jobId], s);
-      if (!s.status) JOBS[jobId].status = 'running';
-      if (s.status === 'done') {
-        JOBS[jobId].clips = DEMO_CLIPS;
-        JOBS[jobId].clips_meta = s.clips_meta || [];
+      jobs[jobId].step     = s.step;
+      jobs[jobId].progress = s.progress;
+
+      if (s.done) {
+        jobs[jobId].status = 'done';
+        jobs[jobId].clips  = DEMO_CLIPS;
+        renderJob(jobId, jobs[jobId]);
         document.getElementById('process-btn').disabled = false;
-        toast('5 clips ready! (demo)');
+        toast('5 clips ready! (demo mode)');
+        return;
       }
-      renderJob(jobId, JOBS[jobId]);
-      if (i < DEMO_STEPS.length) setTimeout(tick, i < 4 ? 900 : i < 8 ? 700 : 600);
-    };
-    setTimeout(tick, 400);
+
+      renderJob(jobId, jobs[jobId]);
+      setTimeout(tick, i <= 3 ? 850 : i <= 8 ? 700 : 550);
+    }
+    setTimeout(tick, 300);
   }
 
-  // ── Process single ─────────────────────────────────────────────────────────
+  // ── Process single video ───────────────────────────────────────────────────
   async function processVideo() {
     const url = document.getElementById('url-input').value.trim();
-    if (!url) { toast('Please enter a YouTube URL'); return; }
+    if (!url) { toast('Please paste a YouTube URL first'); return; }
 
     const btn = document.getElementById('process-btn');
     btn.disabled = true;
-
     document.getElementById('jobs-section').style.display = '';
-    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('empty-state').style.display  = 'none';
+    document.getElementById('url-input').value = '';
 
-    // Try real API first; fall back to demo if server isn't running
+    // If opened as a local file, go straight to demo — no server available
+    if (IS_LOCAL) {
+      const jobId = Math.random().toString(36).slice(2, 10);
+      runDemo(jobId, url);
+      return;
+    }
+
+    // Try live server
     try {
       const res = await fetch('/api/process', {
         method: 'POST',
@@ -669,48 +689,65 @@
         body: JSON.stringify({
           url,
           num_clips: +document.getElementById('num-clips').value,
-          quality: document.getElementById('quality').value,
-          model: document.getElementById('model').value,
+          quality:    document.getElementById('quality').value,
+          model:      document.getElementById('model').value,
         }),
       });
-      if (!res.ok) throw new Error('API error');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { job_id } = await res.json();
       subscribeToJob(job_id);
-      document.getElementById('url-input').value = '';
-    } catch (e) {
-      // Server not running — run demo simulation
-      const jobId = Math.random().toString(36).slice(2,10);
+    } catch (err) {
+      // Server unreachable — fall back to demo
+      console.warn('Server unavailable, running demo:', err.message);
+      const jobId = Math.random().toString(36).slice(2, 10);
       runDemo(jobId, url);
-      document.getElementById('url-input').value = '';
     }
   }
 
   // ── Process batch ──────────────────────────────────────────────────────────
   async function processBatch() {
-    const raw = document.getElementById('batch-urls').value.trim();
+    const raw  = document.getElementById('batch-urls').value.trim();
     const urls = raw.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
     if (!urls.length) { toast('No valid URLs found'); return; }
 
     document.getElementById('jobs-section').style.display = '';
-    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('empty-state').style.display  = 'none';
 
-    const res = await fetch('/api/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        urls,
-        num_clips: +document.getElementById('num-clips').value,
-        quality: document.getElementById('quality').value,
-        model: document.getElementById('model').value,
-      }),
-    });
-    const { job_ids } = await res.json();
-    job_ids.forEach(subscribeToJob);
-    document.getElementById('batch-urls').value = '';
-    toast(`${job_ids.length} jobs started`);
+    if (IS_LOCAL) {
+      urls.forEach(url => {
+        const jobId = Math.random().toString(36).slice(2, 10);
+        runDemo(jobId, url);
+      });
+      document.getElementById('batch-urls').value = '';
+      toast(`${urls.length} demo jobs started`);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          urls,
+          num_clips: +document.getElementById('num-clips').value,
+          quality:    document.getElementById('quality').value,
+          model:      document.getElementById('model').value,
+        }),
+      });
+      const { job_ids } = await res.json();
+      job_ids.forEach(subscribeToJob);
+      document.getElementById('batch-urls').value = '';
+      toast(`${job_ids.length} jobs started`);
+    } catch {
+      urls.forEach(url => {
+        const jobId = Math.random().toString(36).slice(2, 10);
+        runDemo(jobId, url);
+      });
+      toast(`${urls.length} demo jobs started`);
+    }
   }
 
-  // Enter key submits single URL
+  // Enter key triggers generate
   document.getElementById('url-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') processVideo();
   });
