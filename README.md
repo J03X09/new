@@ -65,7 +65,7 @@ set **one** and redeploy (copy `.env.example` for reference):
 
 | Mode | Env var | When to use |
 | --- | --- | --- |
-| **Scraping API** _(easiest)_ | `SCRAPER_API_KEY` | Sign up for a ScraperAPI-compatible service (free tier available). It fetches from residential IPs and solves DataDome for you. Optional `SCRAPER_API_URL` for other providers. |
+| **Scraping API** | `SCRAPER_API_KEY` | Sign up at [ScraperAPI](https://www.scraperapi.com), paste the key, redeploy. It fetches from residential IPs and handles DataDome. Vinted needs its `ultra_premium` tier (~25-30 credits/request), so the free 1,000-credit trial covers ~30-40 test fetches, not continuous polling. Tuning vars: `SCRAPER_API_COUNTRY`, `SCRAPER_API_ULTRA`, `SCRAPER_API_RENDER`. |
 | **Residential proxy** | `VINTED_PROXY_URL` | You already have a residential/rotating proxy. Format: `http://user:pass@host:port`. |
 | **Direct** _(default)_ | — | Only returns real data when the server itself runs on a residential IP (e.g. self-hosting the proxy on your home machine). |
 

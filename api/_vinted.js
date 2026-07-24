@@ -35,6 +35,11 @@ const BROWSER_HEADERS = {
 
 const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || "";
 const SCRAPER_API_URL = process.env.SCRAPER_API_URL || "https://api.scraperapi.com/";
+// Vinted is protected by DataDome, so ScraperAPI needs its anti-bot residential
+// tier ("ultra premium") to get through. These are overridable per deployment.
+const SCRAPER_API_COUNTRY = process.env.SCRAPER_API_COUNTRY || "uk";
+const SCRAPER_API_ULTRA = (process.env.SCRAPER_API_ULTRA || "true") !== "false";
+const SCRAPER_API_RENDER = (process.env.SCRAPER_API_RENDER || "false") === "true";
 const VINTED_PROXY_URL = process.env.VINTED_PROXY_URL || "";
 
 // Reuse a single dispatcher for the residential-proxy path.
@@ -54,20 +59,20 @@ export function egressMode() {
 }
 
 // Single choke point for all outbound requests to Vinted. Applies whichever
-// trusted-egress strategy is configured. `wantJson` marks catalog API calls that
-// the scraping service can render directly.
-async function egressFetch(targetUrl, { headers = {}, wantJson = false } = {}) {
+// trusted-egress strategy is configured.
+async function egressFetch(targetUrl, { headers = {} } = {}) {
 	if (SCRAPER_API_KEY) {
+		// ScraperAPI (https://docs.scraperapi.com) manages its own residential IPs
+		// and anti-bot handling, so we let it own the request rather than forwarding
+		// our headers/cookies.
 		const params = new URLSearchParams({
 			api_key: SCRAPER_API_KEY,
 			url: targetUrl,
-			// Ask for a UK residential IP so results match the .co.uk catalogue.
-			country_code: "gb",
-			keep_headers: "true",
+			country_code: SCRAPER_API_COUNTRY,
 		});
-		return fetch(`${SCRAPER_API_URL}?${params.toString()}`, {
-			headers: { ...headers, "X-Return-Format": wantJson ? "json" : "raw" },
-		});
+		if (SCRAPER_API_ULTRA) params.set("ultra_premium", "true");
+		if (SCRAPER_API_RENDER) params.set("render", "true");
+		return fetch(`${SCRAPER_API_URL}?${params.toString()}`);
 	}
 	if (proxyDispatcher) {
 		return fetch(targetUrl, { headers, dispatcher: proxyDispatcher });
@@ -263,7 +268,6 @@ export async function fetchVintedItems({ query, domain, perPage = 48 } = {}) {
 	const apiUrl = `https://www.${host}/api/v2/catalog/items?${apiParams.toString()}`;
 
 	const res = await egressFetch(apiUrl, {
-		wantJson: true,
 		headers: {
 			...BROWSER_HEADERS,
 			Accept: "application/json, text/plain, */*",
