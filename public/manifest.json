@@ -1,0 +1,17 @@
+{
+  "name": "Vinted Monitor",
+  "short_name": "Vinted Monitor",
+  "description": "Track new Vinted uploads by category and brand.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

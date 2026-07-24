@@ -1,0 +1,75 @@
+# Vinted Monitor
+
+A clean, mobile-first dashboard for spotting **new Vinted uploads** the moment they land —
+organised into categories and brands (Phones, Shoes, Ralph Lauren, Pull & Bear, and any
+custom search you add).
+
+Each item shows its **photo, price, condition and size** at a glance, newly-detected uploads
+are highlighted with a pulsing **NEW** badge, and the feed auto-refreshes on an interval you
+choose.
+
+![dashboard](https://img.shields.io/badge/mobile-first-09B1BA) ![vite](https://img.shields.io/badge/vite-react19-646cff)
+
+## Features
+
+- **Category & brand tabs** — Phones, Shoes, Ralph Lauren, Pull & Bear ship as presets.
+- **Add your own monitors** — paste any Vinted search URL (with category / brand / size /
+  condition filters applied) and the app watches exactly that search. This is the most
+  accurate way to filter, because Vinted itself builds the query.
+- **New-upload detection** — items not seen on the previous poll are flagged `NEW`, counted
+  per category, and can trigger a browser notification and/or a chime.
+- **Live polling** — pick a 15s / 30s / 1m / 2m interval, or pause it.
+- **Region aware** — switch between `vinted.co.uk`, `.com`, `.ie`, `.fr`, `.de`, and more.
+- **Installable** — add to your phone's home screen (PWA manifest + iOS meta tags) for a
+  full-screen, app-like experience.
+- **Item detail** — photo, price, condition (colour-coded), size, brand and upload age; tap a
+  card to open the real listing on Vinted.
+
+## How it works (and the one important caveat)
+
+Vinted has **no public API**. Every working monitor talks to Vinted's *internal* catalog
+endpoint (`/api/v2/catalog/items`), which:
+
+1. can't be called from a browser (CORS + anti-bot), so this app ships a tiny **serverless
+   proxy** at [`api/vinted.js`](api/vinted.js), and
+2. is guarded by DataDome bot protection that **blocks datacentre IPs**.
+
+The proxy fetches an anonymous session cookie from the Vinted homepage, then calls the catalog
+API with proper browser headers and normalises the result. This works reliably from a
+**residential IP or a residential/rotating proxy**. From cloud hosts (Vercel's default IPs,
+CI, sandboxes) Vinted often returns `403` — when that happens the app **degrades gracefully to
+a labelled demo dataset** so the dashboard is always usable, and a banner explains why.
+
+To get live data in production, route the proxy's outbound requests through a residential
+proxy (set one up and point `fetch` in `api/_vinted.js` at it), or self-host the proxy on a
+residential connection.
+
+## Run locally
+
+```bash
+npm install
+npm run dev      # http://localhost:3000  (the /api/vinted proxy runs in Vite dev too)
+```
+
+## Build & deploy
+
+```bash
+npm run build    # outputs dist/
+```
+
+Deploys to **Vercel** as-is: the SPA is served statically and `api/vinted.js` runs as a Node
+serverless function ([`vercel.json`](vercel.json) keeps `/api/*` off the SPA rewrite). Open the
+deployed URL on your phone and add it to your home screen.
+
+## Adding a precise monitor
+
+1. On Vinted, search and apply the filters you want (category, brand, size, condition, price).
+2. Copy the page URL from your browser.
+3. In the app tap **Add**, give it a name + icon, and paste the URL.
+
+The app parses the catalog / brand / size / condition IDs straight from that URL, so the feed
+matches Vinted's own results.
+
+## Tech
+
+Vite · React 19 · TypeScript · Tailwind CSS v4 · a dependency-free Node proxy.
