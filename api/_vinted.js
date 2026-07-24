@@ -1,16 +1,79 @@
-// Core Vinted catalog client (no external dependencies — Node 18+ global fetch).
+// Core Vinted catalog client.
 //
 // Vinted has no public API. Working monitors call the site's *internal* catalog
 // endpoint (`/api/v2/catalog/items`). That endpoint requires a valid anonymous
-// session cookie, which we obtain by first loading the Vinted homepage. This
-// module encapsulates that flow and normalises the response into a stable shape
-// the dashboard can render.
+// session cookie, which we obtain by first loading the Vinted homepage.
+//
+// The hard part is that Vinted's DataDome bot protection blocks datacentre IPs
+// (Vercel's defaults, CI, most clouds). To fetch REAL items the request must
+// leave from an egress Vinted trusts. This module supports three egress modes,
+// selected by environment variables at deploy time:
+//
+//   1. Scraping API   — set SCRAPER_API_KEY (ScraperAPI-compatible). The service
+//                        fetches from residential IPs and solves DataDome. Easiest
+//                        "just works after signup" path. Optional SCRAPER_API_URL
+//                        overrides the endpoint for other providers.
+//   2. Residential proxy — set VINTED_PROXY_URL (http://user:pass@host:port). All
+//                        outbound requests are routed through it via undici.
+//   3. Direct         — no config. Only returns real data when the server itself
+//                        runs on a residential IP; otherwise Vinted 403s and the
+//                        API layer falls back to demo data.
+
+import { ProxyAgent } from "undici";
 
 const BROWSER_HEADERS = {
 	"User-Agent":
-		"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
 	"Accept-Language": "en-GB,en;q=0.9",
+	"sec-ch-ua": '"Chromium";v="126", "Not.A/Brand";v="24", "Google Chrome";v="126"',
+	"sec-ch-ua-mobile": "?0",
+	"sec-ch-ua-platform": '"Windows"',
+	"Sec-Fetch-Dest": "empty",
+	"Sec-Fetch-Mode": "cors",
+	"Sec-Fetch-Site": "same-origin",
 };
+
+const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || "";
+const SCRAPER_API_URL = process.env.SCRAPER_API_URL || "https://api.scraperapi.com/";
+const VINTED_PROXY_URL = process.env.VINTED_PROXY_URL || "";
+
+// Reuse a single dispatcher for the residential-proxy path.
+let proxyDispatcher = null;
+if (VINTED_PROXY_URL) {
+	try {
+		proxyDispatcher = new ProxyAgent(VINTED_PROXY_URL);
+	} catch {
+		proxyDispatcher = null;
+	}
+}
+
+export function egressMode() {
+	if (SCRAPER_API_KEY) return "scraper-api";
+	if (proxyDispatcher) return "proxy";
+	return "direct";
+}
+
+// Single choke point for all outbound requests to Vinted. Applies whichever
+// trusted-egress strategy is configured. `wantJson` marks catalog API calls that
+// the scraping service can render directly.
+async function egressFetch(targetUrl, { headers = {}, wantJson = false } = {}) {
+	if (SCRAPER_API_KEY) {
+		const params = new URLSearchParams({
+			api_key: SCRAPER_API_KEY,
+			url: targetUrl,
+			// Ask for a UK residential IP so results match the .co.uk catalogue.
+			country_code: "gb",
+			keep_headers: "true",
+		});
+		return fetch(`${SCRAPER_API_URL}?${params.toString()}`, {
+			headers: { ...headers, "X-Return-Format": wantJson ? "json" : "raw" },
+		});
+	}
+	if (proxyDispatcher) {
+		return fetch(targetUrl, { headers, dispatcher: proxyDispatcher });
+	}
+	return fetch(targetUrl, { headers });
+}
 
 // Vinted operates one site per country. We only allow known hosts so a pasted
 // URL can never redirect our server-side fetch to an arbitrary origin.
@@ -128,9 +191,14 @@ export function parseVintedQuery(input, fallbackDomain = "vinted.co.uk") {
 
 // Fetch anonymous session cookies from the homepage.
 async function getSessionCookies(domain) {
-	const res = await fetch(`https://www.${domain}/`, {
-		headers: { ...BROWSER_HEADERS, Accept: "text/html" },
-		redirect: "follow",
+	const res = await egressFetch(`https://www.${domain}/`, {
+		headers: {
+			...BROWSER_HEADERS,
+			Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"Sec-Fetch-Dest": "document",
+			"Sec-Fetch-Mode": "navigate",
+			"Sec-Fetch-Site": "none",
+		},
 	});
 	const jar = [];
 	// Node 18.14+/20 exposes getSetCookie(); fall back to the combined header.
@@ -189,10 +257,13 @@ export async function fetchVintedItems({ query, domain, perPage = 48 } = {}) {
 	apiParams.set("per_page", String(Math.min(Math.max(perPage, 1), 96)));
 	apiParams.set("page", "1");
 
-	const cookie = await getSessionCookies(host);
+	// The scraping-API path handles cookies/DataDome itself, so only fetch a
+	// session cookie when we're talking to Vinted directly or via a raw proxy.
+	const cookie = SCRAPER_API_KEY ? "" : await getSessionCookies(host);
 	const apiUrl = `https://www.${host}/api/v2/catalog/items?${apiParams.toString()}`;
 
-	const res = await fetch(apiUrl, {
+	const res = await egressFetch(apiUrl, {
+		wantJson: true,
 		headers: {
 			...BROWSER_HEADERS,
 			Accept: "application/json, text/plain, */*",
@@ -203,7 +274,7 @@ export async function fetchVintedItems({ query, domain, perPage = 48 } = {}) {
 	});
 
 	if (!res.ok) {
-		const err = new Error(`Vinted responded ${res.status}`);
+		const err = new Error(`Vinted responded ${res.status} (egress: ${egressMode()})`);
 		err.status = res.status;
 		throw err;
 	}
@@ -211,6 +282,7 @@ export async function fetchVintedItems({ query, domain, perPage = 48 } = {}) {
 	const items = Array.isArray(data.items) ? data.items : [];
 	return {
 		domain: host,
+		egress: egressMode(),
 		params: parsed.params,
 		items: items.map((i) => normaliseItem(i, host)),
 	};

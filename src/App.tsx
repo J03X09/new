@@ -20,6 +20,7 @@ import type { Monitor, VintedItem } from "@/lib/types";
 interface FeedState {
 	items: VintedItem[];
 	source: "live" | "demo" | null;
+	egress?: "scraper-api" | "proxy" | "direct";
 	error?: string;
 	loading: boolean;
 	lastUpdated: number | null;
@@ -103,6 +104,7 @@ export default function App() {
 					[monitor.id]: {
 						items: res.items,
 						source: res.source,
+						egress: res.egress,
 						error: res.error,
 						loading: false,
 						lastUpdated: res.fetchedAt,
@@ -214,9 +216,12 @@ export default function App() {
 				<div className="mx-3 mb-1 flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-200 ring-1 ring-amber-500/20">
 					<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
 					<span>
-						Showing demo items — Vinted blocked the live request
-						{activeFeed.error ? ` (${activeFeed.error})` : ""}. Live data works from a residential
-						network / proxy. The dashboard itself is fully functional.
+						<strong>Showing demo items.</strong> Vinted blocked the live request
+						{activeFeed.egress ? ` (egress: ${activeFeed.egress})` : ""} — its bot protection
+						blocks datacentre IPs. To get <strong>real uploads</strong>, set a trusted egress on
+						your deployment: <code className="rounded bg-black/30 px-1">SCRAPER_API_KEY</code>{" "}
+						(easiest) or <code className="rounded bg-black/30 px-1">VINTED_PROXY_URL</code> (a
+						residential proxy). See the README → “Turn on real items”.
 					</span>
 				</div>
 			)}

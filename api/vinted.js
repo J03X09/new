@@ -4,7 +4,7 @@
 // When Vinted blocks the request (anti-bot on datacentre IPs) we degrade to a
 // small demo dataset so the dashboard remains reviewable rather than empty.
 
-import { fetchVintedItems } from "./_vinted.js";
+import { fetchVintedItems, egressMode } from "./_vinted.js";
 import { demoItems } from "./_demo.js";
 
 export default async function handler(req, res) {
@@ -22,6 +22,7 @@ export default async function handler(req, res) {
 		res.status(200).json({
 			source: "demo",
 			domain,
+			egress: egressMode(),
 			error: err && err.message ? err.message : "fetch failed",
 			items: demoItems(query, domain),
 			fetchedAt: Date.now(),

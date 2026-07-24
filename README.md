@@ -35,14 +35,29 @@ endpoint (`/api/v2/catalog/items`), which:
 2. is guarded by DataDome bot protection that **blocks datacentre IPs**.
 
 The proxy fetches an anonymous session cookie from the Vinted homepage, then calls the catalog
-API with proper browser headers and normalises the result. This works reliably from a
-**residential IP or a residential/rotating proxy**. From cloud hosts (Vercel's default IPs,
-CI, sandboxes) Vinted often returns `403` — when that happens the app **degrades gracefully to
-a labelled demo dataset** so the dashboard is always usable, and a banner explains why.
+API with proper browser headers and normalises the result. From cloud hosts (Vercel's default
+IPs, CI, sandboxes) Vinted returns `403` — when that happens the app **degrades gracefully to a
+labelled demo dataset** so the dashboard is always usable, and a banner explains how to switch
+on real data.
 
-To get live data in production, route the proxy's outbound requests through a residential
-proxy (set one up and point `fetch` in `api/_vinted.js` at it), or self-host the proxy on a
-residential connection.
+## Turn on real items
+
+Real uploads require the request to leave from an IP Vinted trusts (practically, a residential
+IP). The proxy supports three egress modes, chosen by environment variables at deploy time — set
+**one** and redeploy (copy `.env.example` for reference):
+
+| Mode | Env var | When to use |
+| --- | --- | --- |
+| **Scraping API** _(easiest)_ | `SCRAPER_API_KEY` | Sign up for a ScraperAPI-compatible service (free tier available). It fetches from residential IPs and solves DataDome for you. Optional `SCRAPER_API_URL` for other providers. |
+| **Residential proxy** | `VINTED_PROXY_URL` | You already have a residential/rotating proxy. Format: `http://user:pass@host:port`. |
+| **Direct** _(default)_ | — | Only returns real data when the server itself runs on a residential IP (e.g. self-hosting the proxy on your home machine). |
+
+On **Vercel**: Project → Settings → Environment Variables → add `SCRAPER_API_KEY` (or
+`VINTED_PROXY_URL`) → redeploy. The banner disappears and live items flow. The in-app banner
+also tells you which egress mode is currently active.
+
+> **Note:** you cannot bypass DataDome from a datacentre IP with headers alone — that's an
+> infrastructure constraint every Vinted monitor faces, not a bug in this app.
 
 ## Run locally
 

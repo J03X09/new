@@ -13,7 +13,7 @@ function vintedDevApi() {
 			server.middlewares.use(async (req, res, next) => {
 				if (!req.url || !req.url.startsWith("/api/vinted")) return next();
 				try {
-					const [{ fetchVintedItems }, { demoItems }] = await Promise.all([
+					const [{ fetchVintedItems, egressMode }, { demoItems }] = await Promise.all([
 						server.ssrLoadModule("/api/_vinted.js"),
 						server.ssrLoadModule("/api/_demo.js"),
 					]);
@@ -30,6 +30,7 @@ function vintedDevApi() {
 							JSON.stringify({
 								source: "demo",
 								domain,
+								egress: egressMode(),
 								error: err && err.message ? err.message : "fetch failed",
 								items: demoItems(query, domain),
 								fetchedAt: Date.now(),

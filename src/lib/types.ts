@@ -16,6 +16,7 @@ export interface VintedItem {
 export interface FeedResponse {
 	source: "live" | "demo";
 	domain: string;
+	egress?: "scraper-api" | "proxy" | "direct";
 	items: VintedItem[];
 	error?: string;
 	fetchedAt: number;
