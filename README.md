@@ -43,8 +43,25 @@ on real data.
 ## Turn on real items
 
 Real uploads require the request to leave from an IP Vinted trusts (practically, a residential
-IP). The proxy supports three egress modes, chosen by environment variables at deploy time — set
-**one** and redeploy (copy `.env.example` for reference):
+IP).
+
+### Free, no accounts: run it at home 🏠
+
+The simplest free option is to run the monitor on a machine at home — your home internet is a
+residential IP Vinted trusts, so it returns real items with **no API keys or scraping credits**:
+
+```bash
+npm run home        # builds + serves the whole app on your home IP
+```
+
+Then open it on your phone over Wi-Fi at the printed `Network:` address, or from anywhere via a
+free Cloudflare Tunnel. Full step-by-step in **[HOME_SETUP.md](HOME_SETUP.md)**.
+
+### Deploying to a cloud host instead
+
+If you host on the cloud (Vercel etc.), the request comes from a datacentre IP, so you need a
+trusted egress. The proxy supports three modes, chosen by environment variables at deploy time —
+set **one** and redeploy (copy `.env.example` for reference):
 
 | Mode | Env var | When to use |
 | --- | --- | --- |

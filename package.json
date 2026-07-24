@@ -8,6 +8,8 @@
     "start": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview",
+    "serve": "node server/index.js",
+    "home": "vite build && node server/index.js",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
