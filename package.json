@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "serve": "node server/index.js",
     "home": "vite build && node server/index.js",
+    "home:tunnel": "node scripts/start-home.mjs",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

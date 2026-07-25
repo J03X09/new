@@ -45,22 +45,30 @@ browser. Tap **Share → Add to Home Screen** for an app-like icon.
 
 **Option B — from anywhere (free tunnel).**
 To reach it on mobile data / away from home, expose it with a free
-**Cloudflare Tunnel** — no account needed for a quick tunnel:
+**Cloudflare Tunnel** — no account needed for a quick tunnel. First install
+cloudflared once:
 
 ```bash
 # macOS
 brew install cloudflared
 # Windows: winget install --id Cloudflare.cloudflared
 # Linux: see https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
-
-# with `npm run home` already running in another terminal:
-cloudflared tunnel --url http://localhost:3000
 ```
 
-Cloudflared prints a public `https://<random>.trycloudflare.com` URL — open that
-on your phone from anywhere. (Quick tunnels are ephemeral; the URL changes each
-run. For a permanent URL, create a free Cloudflare account and a named tunnel —
-see their docs. [ngrok](https://ngrok.com) is an equivalent alternative.)
+Then just run **one command** — it builds, starts the server, opens the tunnel,
+and prints the public URL:
+
+```bash
+npm run home:tunnel
+```
+
+You'll see a boxed `https://<random>.trycloudflare.com` link — open that on your
+phone from anywhere. (Prefer to run the tunnel yourself? Keep `npm run home`
+running and, in another terminal, `cloudflared tunnel --url http://localhost:3000`.)
+
+Quick tunnels are ephemeral — the URL changes each run. For a permanent URL,
+create a free Cloudflare account and a named tunnel (see their docs).
+[ngrok](https://ngrok.com) is an equivalent alternative.
 
 ---
 
